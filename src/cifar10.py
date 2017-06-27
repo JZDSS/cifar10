@@ -7,6 +7,7 @@ import numpy as np
 tf.app.flags.DEFINE_integer('-epochs', 10, 'number of epochs')
 tf.app.flags.DEFINE_float('-learning rate', 0.01, 'learning rate')
 tf.app.flags.DEFINE_string('-data', '../data', 'data set direction')
+tf.app.flags.DEFINE_string('-logs', '../logs', 'logs direction')
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -16,18 +17,35 @@ def unpickle(file):
     return dict
 
 
-def load_raining_data():
-    data = np.ndarray(shape=(0, 32*32*3), dtype=float)
+def load_train_data():
+    data = np.ndarray(shape=(0, 32*32*3), dtype=np.float32)
+    labels = np.ndarray(shape=0, dtype=np.int64)
     for i in range(5):
         tmp = unpickle(os.path.join(FLAGS.data, "data_batch_{}".format(i + 1)))
-        print(tmp)
-        data = np.append(data, tmp["data"], axis=0)
-        print(data.shape)
+        data = np.append(data, tmp[b'data'], axis=0)
+        labels = np.append(labels, tmp[b'labels'], axis=0)
+        print('load training data: data_batch_{}'.format(i + 1))
+    return data, labels
+
+
+def load_valid_data():
+    tmp = unpickle(os.path.join(FLAGS.data, "test_batch"))
+    data = tmp[b'data']
+    labels = np.ndarray(shape=(0, 1), dtype=np.int64)
+    labels = np.append(labels, tmp[b'labels'])
+    data.astype(np.float32)
+    data.astype(np.int64)
+    return data, labels
 
 
 def main(_):
-    load_raining_data()
-    print(0)
+    train_data, train_labels = load_train_data()
+    valid_data, valid_labels = load_valid_data()
+    with tf.name_scope('input'):
+        x = tf.placeholder(tf.float32, [-1, 32*32*3], 'x')
+        y_ = tf.placeholder(tf.int64, [-1, ], 'y')
+
+
     return 0
 
 if __name__ == '__main__':
