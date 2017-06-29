@@ -6,7 +6,7 @@ import time
 
 
 tf.app.flags.DEFINE_integer('-epochs', 10, 'number of epochs')
-tf.app.flags.DEFINE_float('-learning_rate', 0.01, 'learning rate')
+tf.app.flags.DEFINE_float('-learning_rate', 0.002, 'learning rate')
 tf.app.flags.DEFINE_string('-data_dir', '../data', 'data set direction')
 tf.app.flags.DEFINE_string('-log_dir', '../logs', 'logs direction')
 tf.app.flags.DEFINE_string('-ckpt_dir', '../ckpt', 'check point direction')
@@ -190,7 +190,7 @@ def main(_):
         global_step = tf.Variable(0, name="global_step")
         learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
             global_step, FLAGS.decay_steps, 0.95, True, "learning_rate")
-        train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(
+        train_step = tf.train.AdamOptimizer(learning_rate).minimize(
             cross_entropy, global_step=global_step)
     tf.summary.scalar('learning_rate', learning_rate)
 
@@ -234,10 +234,10 @@ def main(_):
         return {x: xs, y_: ys, keep_prob: k}
 
     for i in range(FLAGS.max_steps + 1):
-        if i % 1000 == 0 and i != 0:
+        if i % 100 == 99 and i != 0:
             time.sleep(100)
 
-        if i % 100 == 0:  # Record summaries and test-set accuracy
+        if i % 100 == 0 and i != 0:  # Record summaries and test-set accuracy
             acc, summary = sess.run([accuracy, merged], feed_dict=feed_dict(False))
             test_writer.add_summary(summary, i)
             print('Accuracy at step %s: %s' % (i, acc))
