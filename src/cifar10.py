@@ -4,6 +4,8 @@ import os
 import numpy as np
 import time
 
+from src import allconv
+
 
 tf.app.flags.DEFINE_integer('-epochs', 10, 'number of epochs')
 tf.app.flags.DEFINE_float('-learning_rate', 0.002, 'learning rate')
@@ -52,116 +54,6 @@ def load_valid_data():
     return data, labels
 
 
-def deepnn(x):
-    def conv2d(x, W):
-        """conv2d returns a 2d convolution layer with full stride."""
-        return tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
-
-    def max_pool_2x2(x):
-        """max_pool_2x2 downsamples a feature map by 2X."""
-        return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
-                              strides=[1, 2, 2, 1], padding='SAME')
-
-    def fmp(x):
-        return tf.nn.fractional_max_pool(x, [1, 1.414, 1.414, 1])[0]
-
-    def weight_variable(shape):
-        """weight_variable generates a weight variable of a given shape."""
-        initial = tf.truncated_normal(shape, stddev=0.1)
-        return tf.Variable(initial, name="weights")
-
-    def bias_variable(shape):
-        """bias_variable generates a bias variable of a given shape."""
-        initial = tf.constant(0.1, shape=shape)
-        return tf.Variable(initial, name="biases")
-
-    def variable_summaries(var, name):
-        """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-        with tf.name_scope('summaries'):
-            with tf.name_scope(name):
-                mean = tf.reduce_mean(var)
-                tf.summary.scalar('mean', mean)
-                with tf.name_scope('stddev'):
-                    stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-                tf.summary.scalar('stddev', stddev)
-                tf.summary.scalar('max', tf.reduce_max(var))
-                tf.summary.scalar('min', tf.reduce_min(var))
-                tf.summary.histogram('histogram', var)
-
-    # First convolutional layer - maps one grayscale image to 32 feature maps.
-    with tf.name_scope("conv1"):
-        W_conv1 = weight_variable([5, 5, 3, 32])
-        variable_summaries(W_conv1, 'weights')
-        b_conv1 = bias_variable([32])
-        variable_summaries(b_conv1, 'biases')
-
-        h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
-
-        # Pooling layer - downsamples by 2X.
-        h_pool1 = fmp(h_conv1)
-
-    # Second convolutional layer -- maps 32 feature maps to 64.
-    with tf.name_scope("conv2"):
-        W_conv2 = weight_variable([5, 5, 32, 64])
-        variable_summaries(W_conv2, 'weights')
-        b_conv2 = bias_variable([64])
-        variable_summaries(b_conv2, 'biases')
-
-        h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
-
-        # Second pooling layer.
-        h_pool2 = fmp(h_conv2)
-
-    with tf.name_scope("conv3"):
-        W_conv3 = weight_variable([5, 5, 64, 128])
-        variable_summaries(W_conv3, 'weights')
-        b_conv3 = bias_variable([128])
-        variable_summaries(b_conv3, 'biases')
-
-        h_conv3 = tf.nn.relu(conv2d(h_pool2, W_conv3) + b_conv3)
-
-        # Second pooling layer.
-        h_pool3 = fmp(h_conv3)
-
-    with tf.name_scope("conv4"):
-        W_conv4 = weight_variable([5, 5, 128, 256])
-        variable_summaries(W_conv4, 'weights')
-        b_conv4 = bias_variable([256])
-        variable_summaries(b_conv4, 'biases')
-
-        h_conv4 = tf.nn.relu(conv2d(h_pool3, W_conv4) + b_conv4)
-
-        # Second pooling layer.
-        h_pool4 = fmp(h_conv4)
-    # Fully connected layer 1 -- after 2 round of downsampling, our 28x28 image
-    # is down to 7x7x64 feature maps -- maps this to 1024 features.
-    with tf.name_scope("fc1"):
-        W_fc1 = weight_variable([7 * 7 * 256, 1024])
-        variable_summaries(W_fc1, 'weights')
-        b_fc1 = bias_variable([1024])
-        variable_summaries(b_fc1, 'biases')
-
-        h_pool2_flat = tf.reshape(h_pool4, [-1, 7 * 7 * 256])
-        h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
-
-    # Dropout - controls the complexity of the model, prevents co-adaptation of
-    # features.
-    with tf.name_scope("dropout"):
-        keep_prob = tf.placeholder(tf.float32, name="keep_prob")
-        h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
-
-    # Map the 1024 features to 10 classes, one for each digit
-    with tf.name_scope("fc2"):
-        W_fc2 = weight_variable([1024, 10])
-        variable_summaries(W_fc2, 'weights')
-        b_fc2 = bias_variable([10])
-        variable_summaries(b_fc2, 'biases')
-
-        y_conv = tf.matmul(h_fc1_drop, W_fc2) + b_fc2
-
-    return y_conv, keep_prob
-
-
 def main(_):
     if tf.gfile.Exists(FLAGS.log_dir):
         tf.gfile.DeleteRecursively(FLAGS.log_dir)
@@ -179,7 +71,7 @@ def main(_):
 
     tf.summary.image('show', x, 10)
 
-    y, keep_prob = deepnn(x)
+    y, keep_prob = allconv.deepnn(x)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -234,8 +126,8 @@ def main(_):
         return {x: xs, y_: ys, keep_prob: k}
 
     for i in range(FLAGS.max_steps + 1):
-        if i % 100 == 99 and i != 0:
-            time.sleep(100)
+        if i % 1000 == 0 and i != 0:
+            time.sleep(300)
 
         if i % 100 == 0 and i != 0:  # Record summaries and test-set accuracy
             acc, summary = sess.run([accuracy, merged], feed_dict=feed_dict(False))
