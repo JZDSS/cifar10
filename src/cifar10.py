@@ -71,7 +71,7 @@ def main(_):
 
     tf.summary.image('show', x, 10)
 
-    y, keep_prob = allconv.deepnn(x)
+    y, keep_prob = allconv.convpool(x)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
