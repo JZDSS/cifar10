@@ -66,6 +66,11 @@ def convpool(x):
 
         h_conv1 = tf.nn.relu(conv2d(x, W_conv1) + b_conv1)
 
+        W1 = weight_variable([3, 3, 32, 32])
+        b1 = bias_variable([32])
+
+        h_conv1 = conv2d(h_conv1, W1) + b1
+
         # Pooling layer - downsamples by 2X.
         h_pool1 = max_pool32(h_conv1)
 
@@ -78,6 +83,9 @@ def convpool(x):
 
         h_conv2 = tf.nn.relu(conv2d(h_pool1, W_conv2) + b_conv2)
 
+        W2 = weight_variable([3, 3, 64, 64])
+        b2 = bias_variable([64])
+        h_conv2 = conv2d(h_conv2, W2) + b2
         # Second pooling layer.
         h_pool2 = max_pool32(h_conv2)
 
