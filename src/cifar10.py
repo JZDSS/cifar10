@@ -1,11 +1,13 @@
-import tensorflow as tf
-import pickle
 import os
-import numpy as np
+import pickle
 import time
 
-from src import allconv
+import numpy as np
+import tensorflow as tf
 
+from modu import allconv
+from modu import baseline
+from modu import fmp
 
 tf.app.flags.DEFINE_integer('-epochs', 10, 'number of epochs')
 tf.app.flags.DEFINE_float('-learning_rate', 0.002, 'learning rate')
@@ -16,6 +18,8 @@ tf.app.flags.DEFINE_integer('-decay_steps', 100, 'decay steps')
 tf.app.flags.DEFINE_integer('-batch_size', 128, 'batch size')
 tf.app.flags.DEFINE_float('-dropout', 0.5, 'keep probability')
 tf.app.flags.DEFINE_integer('-max_steps', 10000, 'max steps')
+tf.app.flags.DEFINE_string('-model', 'baseline', 'baseline, fmp, allconv')
+tf.app.flags.DEFINE_bool('-lsuv', True, 'if use lsuv initialization')
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -71,7 +75,12 @@ def main(_):
 
     tf.summary.image('show', x, 10)
 
-    y, keep_prob = allconv.convpool(x)
+    if FLAGS.model is 'baseline':
+        y, keep_prob, l, name, shape = baseline.deepnn(x)
+    elif FLAGS.model is 'fmp':
+        y, keep_prob = fmp.fmp(x)
+    elif FLAGS.model is 'allconv':
+        y, keep_prob = allconv.allconv(x)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -109,6 +118,27 @@ def main(_):
         # print(acc)
     else:
         tf.global_variables_initializer().run()
+
+    if FLAGS.lsuv and FLAGS.model is 'baseline':
+        def init(layers, image, names, shapes):
+            n_max = 5
+            i = -1
+            for layer in layers:
+                i = i + 1
+                mean = tf.reduce_mean(layer)
+                std = tf.sqrt(tf.reduce_mean(tf.square(layer - mean)))
+                n = 0
+                std_div = sess.run(std, feed_dict={x: image, keep_prob: FLAGS.dropout})
+                while abs(std_div - 1.0) > 0.01 and n < n_max:
+                    n = n + 1
+                    with tf.variable_scope(names[i], reuse=True):
+                        w = tf.get_variable('weights', shape=shapes[i])
+                        update = tf.assign(w, w / std_div)
+                        sess.run(update)
+                    std_div = sess.run(std, feed_dict={x: image, keep_prob: FLAGS.dropout})
+
+        init(l, train_data[np.random.randint(low=0, high=train_labels.shape[0], size=FLAGS.batch_size, dtype=np.int32), ...],
+                  name, shape)
 
     def feed_dict(train, kk=FLAGS.dropout):
         """Make a TensorFlow feed_dict: maps data onto Tensor placeholders."""
