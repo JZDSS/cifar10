@@ -1,4 +1,4 @@
-from src.utils import *
+from modu.utils import *
 
 def deepnn(x):
 
