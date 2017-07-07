@@ -19,7 +19,7 @@ tf.app.flags.DEFINE_integer('-batch_size', 128, 'batch size')
 tf.app.flags.DEFINE_float('-dropout', 0.5, 'keep probability')
 tf.app.flags.DEFINE_integer('-max_steps', 10000, 'max steps')
 tf.app.flags.DEFINE_string('-model', 'baseline', 'baseline, fmp, allconv')
-tf.app.flags.DEFINE_bool('-lsuv', True, 'if use lsuv initialization')
+tf.app.flags.DEFINE_bool('-lsuv', False, 'if use lsuv initialization')
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -73,7 +73,7 @@ def main(_):
         x = tf.placeholder(tf.float32, [None, 32, 32, 3], 'x')
         y_ = tf.placeholder(tf.int64, [None, ], 'y')
 
-    tf.summary.image('show', x, 10)
+    # tf.summary.image('show', x, 10)
 
     if FLAGS.model is 'baseline':
         y, keep_prob, l, name, shape = baseline.deepnn(x)
