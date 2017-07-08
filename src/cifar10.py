@@ -8,6 +8,7 @@ import tensorflow as tf
 from modu import allconv
 from modu import baseline
 from modu import fmp
+from modu import crossconv
 
 tf.app.flags.DEFINE_integer('-epochs', 10, 'number of epochs')
 tf.app.flags.DEFINE_float('-learning_rate', 0.002, 'learning rate')
@@ -18,7 +19,7 @@ tf.app.flags.DEFINE_integer('-decay_steps', 100, 'decay steps')
 tf.app.flags.DEFINE_integer('-batch_size', 128, 'batch size')
 tf.app.flags.DEFINE_float('-dropout', 0.5, 'keep probability')
 tf.app.flags.DEFINE_integer('-max_steps', 10000, 'max steps')
-tf.app.flags.DEFINE_string('-model', 'baseline', 'baseline, fmp, allconv')
+tf.app.flags.DEFINE_string('-model', 'baseline', 'baseline, fmp, allconv, cross')
 tf.app.flags.DEFINE_bool('-lsuv', False, 'if use lsuv initialization')
 FLAGS = tf.app.flags.FLAGS
 
@@ -81,6 +82,8 @@ def main(_):
         y, keep_prob = fmp.fmp(x)
     elif FLAGS.model is 'allconv':
         y, keep_prob = allconv.allconv(x)
+    elif FLAGS.model is 'cross':
+        y, keep_prob = crossconv.deepnn2(x)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -160,9 +163,11 @@ def main(_):
             time.sleep(300)
 
         if i % 100 == 0 and i != 0:  # Record summaries and test-set accuracy
+            start = time.clock()
             acc, summary = sess.run([accuracy, merged], feed_dict=feed_dict(False))
+            end = time.clock()
             test_writer.add_summary(summary, i)
-            print('Accuracy at step %s: %s' % (i, acc))
+            print('Accuracy at step %s: %s; %f seconds' % (i, acc, end - start))
 
         # else:  # Record train set summaries, and train
         if i % 100 == 99:  # Record execution stats
