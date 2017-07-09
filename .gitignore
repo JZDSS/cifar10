@@ -4,3 +4,4 @@ ckpt/
 __pycache__/
 backup/
 nohup.out
+run.sh
