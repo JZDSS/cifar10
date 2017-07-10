@@ -9,17 +9,19 @@ from modu import allconv
 from modu import baseline
 from modu import fmp
 from modu import crossconv
+from modu import matconvnet
 
 tf.app.flags.DEFINE_integer('-epochs', 10, 'number of epochs')
 tf.app.flags.DEFINE_float('-learning_rate', 0.002, 'learning rate')
-tf.app.flags.DEFINE_string('-data_dir', '../data', 'data set direction')
-tf.app.flags.DEFINE_string('-log_dir', '../logs', 'logs direction')
-tf.app.flags.DEFINE_string('-ckpt_dir', '../ckpt', 'check point direction')
+tf.app.flags.DEFINE_string('-data_dir', './data', 'data set direction')
+tf.app.flags.DEFINE_string('-log_dir', './logs', 'logs direction')
+tf.app.flags.DEFINE_string('-ckpt_dir', './ckpt', 'check point direction')
 tf.app.flags.DEFINE_integer('-decay_steps', 100, 'decay steps')
+tf.app.flags.DEFINE_float('-decay_rate', 0.97, 'decay rate')
 tf.app.flags.DEFINE_integer('-batch_size', 128, 'batch size')
 tf.app.flags.DEFINE_float('-dropout', 0.5, 'keep probability')
 tf.app.flags.DEFINE_integer('-max_steps', 10000, 'max steps')
-tf.app.flags.DEFINE_string('-model', 'baseline', 'baseline, fmp, allconv, cross')
+tf.app.flags.DEFINE_string('-model', 'matconvnet', 'baseline, fmp, allconv, cross, matconvnet')
 tf.app.flags.DEFINE_bool('-lsuv', False, 'if use lsuv initialization')
 FLAGS = tf.app.flags.FLAGS
 
@@ -77,13 +79,20 @@ def main(_):
     # tf.summary.image('show', x, 10)
 
     if FLAGS.model is 'baseline':
+        print('baseline')
         y, keep_prob, l, name, shape = baseline.deepnn(x)
     elif FLAGS.model is 'fmp':
+        print('fmp')
         y, keep_prob = fmp.fmp(x)
     elif FLAGS.model is 'allconv':
+        print('allconv')
         y, keep_prob = allconv.allconv(x)
     elif FLAGS.model is 'cross':
+        print('cross')
         y, keep_prob = crossconv.deepnn2(x)
+    elif FLAGS.model is 'matconvnet':
+        print('matconvnet')
+        y, keep_prob = matconvnet.deepnn(x)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(

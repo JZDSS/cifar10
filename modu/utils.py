@@ -17,6 +17,10 @@ def max_pool32(x):
     return tf.nn.max_pool(x, ksize=[1, 3, 3, 1],
                           strides=[1, 2, 2, 1], padding='SAME')
 
+def avg_pool32(x):
+    """max_pool_2x2 downsamples a feature map by 2X."""
+    return tf.nn.avg_pool(x, ksize=[1, 3, 3, 1],
+                          strides=[1, 2, 2, 1], padding='SAME')
 def fmp(x):
     return tf.nn.fractional_max_pool(x, [1, 1.414, 1.414, 1])[0]
 
@@ -25,12 +29,25 @@ def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.1)
     return tf.get_variable("weights", initializer=initial)
 
+def weight_variable_v2(shape, std):
+    """weight_variable generates a weight variable of a given shape."""
+    initial = tf.truncated_normal(shape, stddev=std)
+    w = tf.get_variable("weights", initializer=initial)
+    variable_summaries(w, 'weights')
+    return w
+
 
 def bias_variable(shape):
     """bias_variable generates a bias variable of a given shape."""
     initial = tf.constant(0.1, shape=shape)
     return tf.Variable(initial, name="biases")
 
+def bias_variable_v2(shape, c):
+    """bias_variable generates a bias variable of a given shape."""
+    initial = tf.constant(c, shape=shape)
+    b = tf.Variable(initial, name="biases")
+    variable_summaries(b, 'biasis')
+    return b
 
 def variable_summaries(var, name):
     """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""

@@ -1,38 +1,5 @@
 from modu.utils import *
 
-def deepnn(x):
-    with tf.name_scope('block1'):
-        conv1_1 = tf.contrib.layers.conv2d(x, 10, [3, 1], scope='conv1_1')
-        pool1_1 = tf.contrib.layers.max_pool2d(conv1_1, [2, 2], scope='pool1_1')
-
-        conv1_2 = tf.contrib.layers.conv2d(pool1_1, 10, [1, 3], scope='conv1_2')
-        pool1_2 = tf.contrib.layers.max_pool2d(conv1_2, [2, 2], scope='pool1_2')
-
-        conv2_1 = tf.contrib.layers.conv2d(x, 10, [1, 3], scope='conv2_1')
-        pool2_1 = tf.contrib.layers.max_pool2d(conv2_1, [2, 2], scope='pool2_1')
-
-        conv2_2 = tf.contrib.layers.conv2d(pool2_1, 10, [3, 1], scope='conv2_2')
-        pool2_2 = tf.contrib.layers.max_pool2d(conv2_2, [2, 2], scope='pool2_2')
-
-        s = tf.stack([pool1_2, pool2_2], axis=1)
-
-    conv3 = tf.contrib.layers.conv2d(s, 20, [1, 1])
-    pool3 = tf.contrib.layers.max_pool2d(conv3, [2, 2])
-
-    conv4 = tf.contrib.layers.conv2d(pool3, 40, [1, 1])
-    pool4 = tf.contrib.layers.max_pool2d(conv4, [2, 2])
-
-    conv5 = tf.contrib.layers.conv2d(pool4, 80, [1, 1])
-    pool5 = tf.contrib.layers.max_pool2d(conv5, [2, 2])
-    fc1 = tf.contrib.layers.fully_connected(pool5, 160)
-    with tf.name_scope("dropout"):
-        keep_prob = tf.placeholder(tf.float32, name="keep_prob")
-        fc1_drop = tf.nn.dropout(fc1, keep_prob)
-    fc2 = tf.contrib.layers.fully_connected(fc1_drop, 10, activation_fn=None)
-    fc2 = tf.reshape(fc2, [-1, 10])
-    return fc2, keep_prob
-
-
 def deepnn2(x):
 
     # First convolutional layer - maps one grayscale image to 32 feature maps.
