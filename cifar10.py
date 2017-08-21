@@ -10,19 +10,21 @@ from modu import baseline
 from modu import fmp
 from modu import crossconv
 from modu import matconvnet
+from modu import resnet
 
-tf.app.flags.DEFINE_integer('-epochs', 10, 'number of epochs')
-tf.app.flags.DEFINE_float('-learning_rate', 0.002, 'learning rate')
-tf.app.flags.DEFINE_string('-data_dir', './data', 'data set direction')
-tf.app.flags.DEFINE_string('-log_dir', './logs', 'logs direction')
-tf.app.flags.DEFINE_string('-ckpt_dir', './ckpt', 'check point direction')
-tf.app.flags.DEFINE_integer('-decay_steps', 100, 'decay steps')
-tf.app.flags.DEFINE_float('-decay_rate', 0.97, 'decay rate')
-tf.app.flags.DEFINE_integer('-batch_size', 128, 'batch size')
-tf.app.flags.DEFINE_float('-dropout', 0.5, 'keep probability')
-tf.app.flags.DEFINE_integer('-max_steps', 10000, 'max steps')
-tf.app.flags.DEFINE_string('-model', 'matconvnet', 'baseline, fmp, allconv, cross, matconvnet')
-tf.app.flags.DEFINE_bool('-lsuv', False, 'if use lsuv initialization')
+tf.app.flags.DEFINE_integer('epochs', 10, 'number of epochs')
+tf.app.flags.DEFINE_float('learning_rate', 0.05, 'learning rate')
+tf.app.flags.DEFINE_string('data_dir', './data', 'data set direction')
+tf.app.flags.DEFINE_string('log_dir', './logs', 'logs direction')
+tf.app.flags.DEFINE_string('ckpt_dir', './ckpt', 'check point direction')
+tf.app.flags.DEFINE_integer('decay_steps', 7500, 'decay steps')
+tf.app.flags.DEFINE_float('decay_rate', 1, 'decay rate')
+tf.app.flags.DEFINE_integer('batch_size', 100, 'batch size')
+tf.app.flags.DEFINE_float('dropout', 1, 'keep probability')
+tf.app.flags.DEFINE_integer('max_steps', 15000, 'max steps')
+tf.app.flags.DEFINE_string('model', 'matconvnet', 'baseline, fmp, allconv, cross, matconvnet, resnet')
+tf.app.flags.DEFINE_bool('lsuv', False, 'if use lsuv initialization')
+tf.app.flags.DEFINE_float('momentum', 0.9, 'momentum')
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -40,7 +42,7 @@ def load_train_data():
         data = np.append(data, tmp[b'data'], axis=0)
         labels = np.append(labels, tmp[b'labels'], axis=0)
         print('load training data: data_batch_{}'.format(i + 1))
-    data = np.reshape(data, [-1, 32, 32, 3], 'F')
+    data = np.reshape(data, [-1, 32, 32, 3], 'F').transpose((0, 2, 1, 3))
     return data, labels
 
 
@@ -56,7 +58,7 @@ def load_valid_data():
     # data.astype(np.float32)
     # labels.astype(np.int64)
 
-    data = np.reshape(data, [-1, 32, 32, 3], 'F')
+    data = np.reshape(data, [-1, 32, 32, 3], 'F').transpose((0, 2, 1, 3))
     print('load test data: test_batch')
     return data, labels
 
@@ -76,23 +78,25 @@ def main(_):
         x = tf.placeholder(tf.float32, [None, 32, 32, 3], 'x')
         y_ = tf.placeholder(tf.int64, [None, ], 'y')
 
-    # tf.summary.image('show', x, 10)
+    tf.summary.image('show', x, 10)
 
-    if FLAGS.model is 'baseline':
+    if FLAGS.model == 'baseline':
         print('baseline')
         y, keep_prob, l, name, shape = baseline.deepnn(x)
-    elif FLAGS.model is 'fmp':
+    elif FLAGS.model == 'fmp':
         print('fmp')
         y, keep_prob = fmp.fmp(x)
-    elif FLAGS.model is 'allconv':
+    elif FLAGS.model == 'allconv':
         print('allconv')
         y, keep_prob = allconv.allconv(x)
-    elif FLAGS.model is 'cross':
+    elif FLAGS.model == 'cross':
         print('cross')
         y, keep_prob = crossconv.deepnn2(x)
-    elif FLAGS.model is 'matconvnet':
+    elif FLAGS.model == 'matconvnet':
         print('matconvnet')
         y, keep_prob = matconvnet.deepnn(x)
+    elif FLAGS.model == 'resnet':
+        y, keep_prob = resnet.deepnn(x)
 
     with tf.name_scope('loss'):
         cross_entropy = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(
@@ -103,7 +107,7 @@ def main(_):
         global_step = tf.Variable(0, name="global_step")
         learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
             global_step, FLAGS.decay_steps, 0.95, True, "learning_rate")
-        train_step = tf.train.AdamOptimizer(learning_rate).minimize(
+        train_step = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum).minimize(
             cross_entropy, global_step=global_step)
     tf.summary.scalar('learning_rate', learning_rate)
 
@@ -168,8 +172,8 @@ def main(_):
         return {x: xs, y_: ys, keep_prob: k}
 
     for i in range(FLAGS.max_steps + 1):
-        if i % 1000 == 0 and i != 0:
-            time.sleep(300)
+        # if i % 1000 == 0 and i != 0:
+        #     time.sleep(300)
 
         if i % 100 == 0 and i != 0:  # Record summaries and test-set accuracy
             start = time.clock()
@@ -207,4 +211,4 @@ def main(_):
     return 0
 
 if __name__ == '__main__':
-    tf.app.run(main)
+    tf.app.run()
