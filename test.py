@@ -1,8 +1,6 @@
 import tensorflow as tf
 import tensorflow.contrib.losses as loss
 import tensorflow.contrib.layers as layers
-import os
-import shutil
 
 flags = tf.app.flags
 
@@ -56,28 +54,33 @@ def build_net(x):
 
 def main(_):
 
-    if not os.path.exists(FLAGS.data_dir):
+    if not tf.gfile.Exists(FLAGS.data_dir):
         print('data direction is not exist!')
         return -1
 
-    if os.path.exists(FLAGS.log_dir):
-        shutil.rmtree(FLAGS.log_dir)
-    os.mkdir(FLAGS.log_dir)
-    predictions = tf.constant([1, 2, 4], tf.float32, [1, 3], 'predicted_label')
-    labels = tf.constant([2, 1, 3], tf.float32, [1, 3], 'ground_truth')
+    if tf.gfile.Exists(FLAGS.log_dir):
+        tf.gfile.DeleteRecursively(FLAGS.log_dir)
+    tf.gfile.MakeDirs(FLAGS.log_dir)
+
 
     with tf.name_scope('input'):
         x = tf.placeholder(tf.float32, [None, 32, 32, 3], 'x')
+
+    with tf.name_scope('label'):
         y_ = tf.placeholder(tf.int64, [None, ], 'y')
 
-    # with tf.name_scope('net'):
-    y, keep_prob = build_net(x)
-    loss.sparse_softmax_cross_entropy(y, y_, scope='cross_entropy')
+    with tf.variable_scope('net'):
+        y, keep_prob = build_net(x)
+    with tf.name_scope('scores'):
+        loss.sparse_softmax_cross_entropy(y, y_, scope='cross_entropy')
+        total_loss = tf.contrib.losses.get_total_loss(add_regularization_losses=True, name='total_loss')
+
+        accuracy = tf.metrics.accuracy(labels=y_, predictions=tf.argmax(y, 1), name='accuracy')
+
     # loss.mean_squared_error(predictions, labels, scope='l2_1')
     # loss.mean_squared_error(predictions, labels, scope='l2_2')
 
     # loss_collect = tf.get_collection(tf.GraphKeys.LOSSES)
-    total_loss = tf.contrib.losses.get_total_loss(add_regularization_losses=True, name='total_loss')
     # print((tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)))
     with tf.name_scope('train'):
         global_step = tf.Variable(0, name="global_step")
@@ -85,8 +88,7 @@ def main(_):
             global_step, FLAGS.decay_steps, FLAGS.decay_rate, True, "learning_rate")
         train_step = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum).minimize(
             total_loss, global_step=global_step)
-    with tf.name_scope('accuracy'):
-        accuracy = tf.metrics.accuracy(labels=y_, predictions=tf.argmax(y, 1), name='accuracy')
+
 
     with tf.Session() as sess:
         writer = tf.summary.FileWriter(FLAGS.log_dir, sess.graph)
