@@ -29,10 +29,10 @@ def weight_variable(shape):
     initial = tf.truncated_normal(shape, stddev=0.1)
     return tf.get_variable("weights", initializer=initial)
 
-def weight_variable_v2(shape, std):
+def weight_variable_v2(shape, std, weight_decay):
     """weight_variable generates a weight variable of a given shape."""
     initial = tf.truncated_normal(shape, stddev=std)
-    w = tf.get_variable("weights", initializer=initial)
+    w = tf.get_variable("weights", initializer=initial, regularizer=tf.contrib.layers.l2_regularizer(weight_decay))
     variable_summaries(w, 'weights')
     return w
 
@@ -42,10 +42,10 @@ def bias_variable(shape):
     initial = tf.constant(0.1, shape=shape)
     return tf.Variable(initial, name="biases")
 
-def bias_variable_v2(shape, c):
+def bias_variable_v2(shape, c, weight_decay):
     """bias_variable generates a bias variable of a given shape."""
     initial = tf.constant(c, shape=shape)
-    b = tf.Variable(initial, name="biases")
+    b = tf.get_variable("biases", initializer=initial, regularizer=tf.contrib.layers.l2_regularizer(weight_decay))
     variable_summaries(b, 'biasis')
     return b
 
