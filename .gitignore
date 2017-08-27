@@ -6,3 +6,4 @@ backup/
 nohup.out
 run.sh
 test/
+data/

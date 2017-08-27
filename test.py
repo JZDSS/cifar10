@@ -19,7 +19,7 @@ flags.DEFINE_float('decay_rate', 1, 'decay rate')
 flags.DEFINE_float('momentum', 0.9, 'momentum')
 tf.app.flags.DEFINE_integer('batch_size', 100, 'batch size')
 tf.app.flags.DEFINE_float('dropout', 1, 'keep probability')
-tf.app.flags.DEFINE_integer('max_steps', 15000, 'max steps')
+tf.app.flags.DEFINE_integer('max_steps', 22500, 'max steps')
 
 FLAGS = flags.FLAGS
 
@@ -98,6 +98,9 @@ def load_valid_data():
     return data, labels
 
 
+
+
+
 def main(_):
 
     if not tf.gfile.Exists(FLAGS.data_dir):
@@ -109,12 +112,16 @@ def main(_):
     tf.gfile.MakeDirs(FLAGS.log_dir)
 
     train_data, train_labels = load_train_data()
+    # name = 'cifar10_train'
+
     valid_data, valid_labels = load_valid_data()
+    # name = 'cifar10_valid'
     train_data = (train_data - 128) / 128.0
     valid_data = (valid_data - 128) / 128.0
 
     with tf.name_scope('input'):
         x = tf.placeholder(tf.float32, [None, 32, 32, 3], 'x')
+        # tf.summary.image('show', x, 1)
 
     with tf.name_scope('label'):
         y_ = tf.placeholder(tf.int64, [None, ], 'y')
@@ -141,8 +148,9 @@ def main(_):
     # print((tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)))
     with tf.name_scope('train'):
         global_step = tf.Variable(0, name="global_step")
-        learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
-            global_step, FLAGS.decay_steps, FLAGS.decay_rate, True, "learning_rate")
+        # learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
+        #     global_step, FLAGS.decay_steps, FLAGS.decay_rate, True, "learning_rate")
+        learning_rate = tf.train.piecewise_constant(global_step, [15000, 20000], [0.05, 0.005, 0.0005])
         train_step = tf.train.MomentumOptimizer(learning_rate, momentum=FLAGS.momentum).minimize(
             total_loss, global_step=global_step)
 

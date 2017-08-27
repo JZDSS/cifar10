@@ -8,7 +8,7 @@ import tensorflow as tf
 flags = tf.app.flags
 flags.DEFINE_string('data_dir', './test/data', 'data direction')
 flags.DEFINE_string('outdirectory', './test/', '')
-flags.DEFINE_bool('train', True, 'True for training data, False for valid data')
+flags.DEFINE_bool('train', False, 'True for training data, False for valid data')
 FLAGS = flags.FLAGS
 
 def unpickle(file):
@@ -18,7 +18,7 @@ def unpickle(file):
 
 
 def load_train_data():
-    data = np.ndarray(shape=(0, 32 * 32 * 3), dtype=np.float32)
+    data = np.ndarray(shape=(0, 32 * 32 * 3), dtype=np.uint8)
     labels = np.ndarray(shape=0, dtype=np.int64)
     for i in range(5):
         tmp = unpickle(os.path.join(FLAGS.data_dir, "data_batch_{}".format(i + 1)))
@@ -74,15 +74,16 @@ def main(_):
     writer = tf.python_io.TFRecordWriter(filename)
     for index in range(num_examples):
         image_raw = data[index].tostring()
-        d = data[index].astype(np.uint8)
+        # print(image_raw)
+        # d = data[index].astype(np.uint8)
         # plt.imshow(d)
         # plt.show()
         # cv2.imshow('a', d)
         # cv2.waitKey(0)
         example = tf.train.Example(features=tf.train.Features(feature={
-            'height': _int64_feature(rows),
-            'width': _int64_feature(cols),
-            'depth': _int64_feature(depth),
+            # 'height': _int64_feature(rows),
+            # 'width': _int64_feature(cols),
+            # 'depth': _int64_feature(depth),
             'label': _int64_feature(int(labels[index])),
             'image_raw': _bytes_feature(image_raw)}))
         writer.write(example.SerializeToString())
