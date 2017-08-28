@@ -129,9 +129,16 @@ def main(_):
     with tf.variable_scope('net'):
         y, keep_prob = build_net(x)
     with tf.name_scope('scores'):
-        loss.sparse_softmax_cross_entropy(y, y_, scope='cross_entropy')
+        # loss.sparse_softmax_cross_entropy(y, y_, scope='cross_entropy')
         total_loss = tf.contrib.losses.get_total_loss(add_regularization_losses=True, name='total_loss')
 
+        expp = tf.exp(y)
+
+        correct = tf.reduce_sum(tf.multiply(tf.one_hot(y_, 10), y), 1)
+
+        total_loss = total_loss + tf.reduce_mean(tf.log(tf.reduce_sum(expp, 1)), 0) - tf.reduce_mean(correct, 0)
+
+        tf.summary.scalar('loss', total_loss)
         # with tf.name_scope('accuracy'):
         # with tf.name_scope('correct_prediction'):
         with tf.name_scope('accuracy'):
