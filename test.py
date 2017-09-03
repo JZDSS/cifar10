@@ -14,12 +14,12 @@ flags.DEFINE_string('data_dir', './test/data', 'data direction')
 flags.DEFINE_string('log_dir', './test/logs', 'log direction')
 flags.DEFINE_string('ckpt_dir', './test/ckpt', 'check point direction')
 flags.DEFINE_float('weight_decay', 0.0001, 'weight decay')
-flags.DEFINE_integer('decay_steps', 7500, 'decay steps')
-flags.DEFINE_float('decay_rate', 1, 'decay rate')
+flags.DEFINE_integer('decay_steps', 100, 'decay steps')
+flags.DEFINE_float('decay_rate', 0.95, 'decay rate')
 flags.DEFINE_float('momentum', 0.9, 'momentum')
 tf.app.flags.DEFINE_integer('batch_size', 100, 'batch size')
-tf.app.flags.DEFINE_float('dropout', 1, 'keep probability')
-tf.app.flags.DEFINE_integer('max_steps', 22500, 'max steps')
+tf.app.flags.DEFINE_float('dropout', 0.5, 'keep probability')
+tf.app.flags.DEFINE_integer('max_steps', 15000, 'max steps')
 
 FLAGS = flags.FLAGS
 
@@ -29,28 +29,28 @@ def build_net(x):
                       weights_initializer=tf.truncated_normal_initializer(stddev=0.01),
                       weights_regularizer=layers.l2_regularizer(weight_decay),
                       biases_regularizer=layers.l2_regularizer(weight_decay),
-                      scope='conv1')
+                      scope='conv1', normalizer_fn=layers.batch_norm)
     h1 = layers.avg_pool2d(inputs=h1, kernel_size=[3, 3], padding='SAME', scope='pool1')
 
     h2 = layers.conv2d(inputs=h1, num_outputs=32, kernel_size=[5, 5],
                       weights_initializer=tf.truncated_normal_initializer(stddev=0.05),
                       weights_regularizer=layers.l2_regularizer(weight_decay),
                       biases_regularizer=layers.l2_regularizer(weight_decay),
-                      scope='conv2')
+                      scope='conv2', normalizer_fn=layers.batch_norm)
     h2 = layers.avg_pool2d(inputs=h2, kernel_size=[3, 3], padding='SAME', scope='pool2')
 
     h3 = layers.conv2d(inputs=h2, num_outputs=64, kernel_size=[5, 5],
                        weights_initializer=tf.truncated_normal_initializer(stddev=0.05),
                        weights_regularizer=layers.l2_regularizer(weight_decay),
                        biases_regularizer=layers.l2_regularizer(weight_decay),
-                       scope='conv3')
+                       scope='conv3', normalizer_fn=layers.batch_norm)
     h3 = layers.avg_pool2d(inputs=h3, kernel_size=[3, 3], padding='SAME', scope='pool3')
 
     h4 = layers.conv2d(inputs=h3, num_outputs=64, kernel_size=[4, 4],
                        weights_initializer=tf.truncated_normal_initializer(stddev=0.05),
                        weights_regularizer=layers.l2_regularizer(weight_decay),
                        biases_regularizer=layers.l2_regularizer(weight_decay),
-                       padding='VALID', scope='conv4')
+                       padding='VALID', scope='conv4', normalizer_fn=layers.batch_norm)
     keep_prob = tf.placeholder(tf.float32, name="keep_prob")
     h4 = layers.dropout(inputs=h4, keep_prob=keep_prob, scope='dropout')
 
@@ -107,9 +107,9 @@ def main(_):
         print('data direction is not exist!')
         return -1
 
-    if tf.gfile.Exists(FLAGS.log_dir):
-        tf.gfile.DeleteRecursively(FLAGS.log_dir)
-    tf.gfile.MakeDirs(FLAGS.log_dir)
+    # if tf.gfile.Exists(FLAGS.log_dir):
+    #     tf.gfile.DeleteRecursively(FLAGS.log_dir)
+    # tf.gfile.MakeDirs(FLAGS.log_dir)
 
     train_data, train_labels = load_train_data()
     # name = 'cifar10_train'
@@ -129,14 +129,14 @@ def main(_):
     with tf.variable_scope('net'):
         y, keep_prob = build_net(x)
     with tf.name_scope('scores'):
-        # loss.sparse_softmax_cross_entropy(y, y_, scope='cross_entropy')
+        loss.sparse_softmax_cross_entropy(y, y_, scope='cross_entropy')
         total_loss = tf.contrib.losses.get_total_loss(add_regularization_losses=True, name='total_loss')
 
-        expp = tf.exp(y)
-
-        correct = tf.reduce_sum(tf.multiply(tf.one_hot(y_, 10), y), 1)
-
-        total_loss = total_loss + tf.reduce_mean(tf.log(tf.reduce_sum(expp, 1)), 0) - tf.reduce_mean(correct, 0)
+        # expp = tf.exp(y)
+        #
+        # correct = tf.reduce_sum(tf.multiply(tf.one_hot(y_, 10), y), 1)
+        #
+        # total_loss = total_loss + tf.reduce_mean(tf.log(tf.reduce_sum(expp, 1)), 0) - tf.reduce_mean(correct, 0)
 
         tf.summary.scalar('loss', total_loss)
         # with tf.name_scope('accuracy'):
@@ -154,12 +154,13 @@ def main(_):
     # loss_collect = tf.get_collection(tf.GraphKeys.LOSSES)
     # print((tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)))
     with tf.name_scope('train'):
-        global_step = tf.Variable(0, name="global_step")
-        # learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
-        #     global_step, FLAGS.decay_steps, FLAGS.decay_rate, True, "learning_rate")
-        learning_rate = tf.train.piecewise_constant(global_step, [15000, 20000], [0.05, 0.005, 0.0005])
+        global_step = tf.Variable(1, name="global_step")
+        learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
+            global_step, FLAGS.decay_steps, FLAGS.decay_rate, True, "learning_rate")
+        #learning_rate = tf.train.piecewise_constant(global_step, [5000, 12000], [0.05, 0.005, 0.0005])
         train_step = tf.train.MomentumOptimizer(learning_rate, momentum=FLAGS.momentum).minimize(
             total_loss, global_step=global_step)
+    tf.summary.scalar('lr', learning_rate)
 
     merged = tf.summary.merge_all()
 
@@ -196,16 +197,16 @@ def main(_):
                 k = 1.0
             return {x: xs, y_: ys, keep_prob: k}
 
-        for i in range(FLAGS.max_steps + 1):
-            # if i % 1000 == 0 and i != 0:
-            #     time.sleep(300)
+        for i in range(1, FLAGS.max_steps + 1):
+            if i % 1000 == 0 and i != 1:
+                time.sleep(60)
 
             if i % 100 == 0 and i != 0:  # Record summaries and test-set accuracy
-                start = time.clock()
+                # start = time.clock()
                 acc, summary = sess.run([accuracy, merged], feed_dict=feed_dict(False))
-                end = time.clock()
+                # end = time.clock()
                 test_writer.add_summary(summary, i)
-                print('Accuracy at step %s: %s; %f seconds' % (i, acc, end - start))
+                # print('Accuracy at step %s: %s; %f seconds' % (i, acc, end - start))
 
             # else:  # Record train set summaries, and train
             if i % 100 == 99:  # Record execution stats
