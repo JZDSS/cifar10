@@ -6,10 +6,11 @@ import os
 import pickle
 import time
 
+import modu.resnet as res
 
 flags = tf.app.flags
 
-flags.DEFINE_float('learning_rate', 0.05, 'learning rate')
+flags.DEFINE_float('learning_rate', 0.1, 'learning rate')
 flags.DEFINE_string('data_dir', './test/data', 'data direction')
 flags.DEFINE_string('log_dir', './test/logs', 'log direction')
 flags.DEFINE_string('ckpt_dir', './test/ckpt', 'check point direction')
@@ -19,7 +20,7 @@ flags.DEFINE_float('decay_rate', 0.95, 'decay rate')
 flags.DEFINE_float('momentum', 0.9, 'momentum')
 tf.app.flags.DEFINE_integer('batch_size', 100, 'batch size')
 tf.app.flags.DEFINE_float('dropout', 0.5, 'keep probability')
-tf.app.flags.DEFINE_integer('max_steps', 15000, 'max steps')
+tf.app.flags.DEFINE_integer('max_steps', 64000, 'max steps')
 
 FLAGS = flags.FLAGS
 
@@ -120,14 +121,16 @@ def main(_):
     valid_data = (valid_data - 128) / 128.0
 
     with tf.name_scope('input'):
-        x = tf.placeholder(tf.float32, [None, 32, 32, 3], 'x')
+        x = tf.placeholder(tf.float32, [100, 32, 32, 3], 'x')
         # tf.summary.image('show', x, 1)
 
     with tf.name_scope('label'):
         y_ = tf.placeholder(tf.int64, [None, ], 'y')
 
     with tf.variable_scope('net'):
-        y, keep_prob = build_net(x)
+        # y, keep_prob = build_net(x)
+        y, keep_prob = res.build_net(x, 3)
+
     with tf.name_scope('scores'):
         loss.sparse_softmax_cross_entropy(y, y_, scope='cross_entropy')
         total_loss = tf.contrib.losses.get_total_loss(add_regularization_losses=True, name='total_loss')
@@ -155,9 +158,9 @@ def main(_):
     # print((tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)))
     with tf.name_scope('train'):
         global_step = tf.Variable(1, name="global_step")
-        learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
-            global_step, FLAGS.decay_steps, FLAGS.decay_rate, True, "learning_rate")
-        #learning_rate = tf.train.piecewise_constant(global_step, [5000, 12000], [0.05, 0.005, 0.0005])
+        # learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
+        #     global_step, FLAGS.decay_steps, FLAGS.decay_rate, True, "learning_rate")
+        learning_rate = tf.train.piecewise_constant(global_step, [32000, 48000], [0.1, 0.01, 0.001])
         train_step = tf.train.MomentumOptimizer(learning_rate, momentum=FLAGS.momentum).minimize(
             total_loss, global_step=global_step)
     tf.summary.scalar('lr', learning_rate)
