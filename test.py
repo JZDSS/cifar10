@@ -121,7 +121,7 @@ def main(_):
     valid_data = (valid_data - 128) / 128.0
 
     with tf.name_scope('input'):
-        x = tf.placeholder(tf.float32, [100, 32, 32, 3], 'x')
+        x = tf.placeholder(tf.float32, [None, 32, 32, 3], 'x')
         # tf.summary.image('show', x, 1)
 
     with tf.name_scope('label'):
