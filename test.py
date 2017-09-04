@@ -20,7 +20,7 @@ flags.DEFINE_float('decay_rate', 0.95, 'decay rate')
 flags.DEFINE_float('momentum', 0.9, 'momentum')
 tf.app.flags.DEFINE_integer('batch_size', 100, 'batch size')
 tf.app.flags.DEFINE_float('dropout', 0.5, 'keep probability')
-tf.app.flags.DEFINE_integer('max_steps', 64000, 'max steps')
+tf.app.flags.DEFINE_integer('max_steps', 20000, 'max steps')
 
 FLAGS = flags.FLAGS
 
@@ -160,7 +160,7 @@ def main(_):
         global_step = tf.Variable(1, name="global_step")
         # learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
         #     global_step, FLAGS.decay_steps, FLAGS.decay_rate, True, "learning_rate")
-        learning_rate = tf.train.piecewise_constant(global_step, [32000, 48000], [0.1, 0.01, 0.001])
+        learning_rate = tf.train.piecewise_constant(global_step, [5000, 15000], [0.1, 0.01, 0.001])
         train_step = tf.train.MomentumOptimizer(learning_rate, momentum=FLAGS.momentum).minimize(
             total_loss, global_step=global_step)
     tf.summary.scalar('lr', learning_rate)
