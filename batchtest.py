@@ -5,6 +5,7 @@ import numpy as np
 import os
 import pickle
 import time
+import matplotlib.pyplot as plt
 
 import modu.resnet as res
 
@@ -20,7 +21,7 @@ flags.DEFINE_float('decay_rate', 0.95, 'decay rate')
 flags.DEFINE_float('momentum', 0.9, 'momentum')
 tf.app.flags.DEFINE_integer('batch_size', 100, 'batch size')
 tf.app.flags.DEFINE_float('dropout', 0.5, 'keep probability')
-tf.app.flags.DEFINE_integer('max_steps', 64000, 'max steps')
+tf.app.flags.DEFINE_integer('max_steps', 20000, 'max steps')
 
 FLAGS = flags.FLAGS
 
@@ -64,40 +65,67 @@ def build_net(x):
     return h5, keep_prob
 
 
-def unpickle(file):
-    with open(file, 'rb') as fo:
-        dict = pickle.load(fo, encoding='bytes')
-    return dict
+# def unpickle(file):
+#     with open(file, 'rb') as fo:
+#         dict = pickle.load(fo, encoding='bytes')
+#     return dict
+#
+#
+# def load_train_data():
+#     data = np.ndarray(shape=(0, 32 * 32 * 3), dtype=np.float32)
+#     labels = np.ndarray(shape=0, dtype=np.int64)
+#     for i in range(5):
+#         tmp = unpickle(os.path.join(FLAGS.data_dir, "data_batch_{}".format(i + 1)))
+#         data = np.append(data, tmp[b'data'], axis=0)
+#         labels = np.append(labels, tmp[b'labels'], axis=0)
+#         print('load training data: data_batch_{}'.format(i + 1))
+#     data = np.reshape(data, [-1, 32, 32, 3], 'F').transpose((0, 2, 1, 3))
+#     return data, labels
+#
+#
+# def load_valid_data():
+#     tmp = unpickle(os.path.join(FLAGS.data_dir, "test_batch"))
+#     data = np.ndarray(shape=(0, 32 * 32 * 3), dtype=np.float32)
+#     labels = np.ndarray(shape=0, dtype=np.int64)
+#
+#     data = np.append(data, tmp[b'data'], axis=0)
+#     # data = tmp[b'data']
+#     labels = np.append(labels, tmp[b'labels'])
+#
+#     # data.astype(np.float32)
+#     # labels.astype(np.int64)
+#
+#     data = np.reshape(data, [-1, 32, 32, 3], 'F').transpose((0, 2, 1, 3))
+#     print('load test data: test_batch')
+#     return data, labels
 
 
-def load_train_data():
-    data = np.ndarray(shape=(0, 32 * 32 * 3), dtype=np.float32)
-    labels = np.ndarray(shape=0, dtype=np.int64)
-    for i in range(5):
-        tmp = unpickle(os.path.join(FLAGS.data_dir, "data_batch_{}".format(i + 1)))
-        data = np.append(data, tmp[b'data'], axis=0)
-        labels = np.append(labels, tmp[b'labels'], axis=0)
-        print('load training data: data_batch_{}'.format(i + 1))
-    data = np.reshape(data, [-1, 32, 32, 3], 'F').transpose((0, 2, 1, 3))
-    return data, labels
+def read_my_file_format(filename_queue, train):
+    reader = tf.FixedLengthRecordReader(record_bytes=1 + 32 * 32 * 3)
+    key, value = reader.read(filename_queue)
+    record_bytes = tf.decode_raw(value, tf.uint8)
+    label = tf.cast(tf.strided_slice(record_bytes, [0], [1]), tf.int64)
+    example = tf.transpose(tf.reshape(tf.strided_slice(record_bytes, [1], [1 + 32*32*3]), [3, 32, 32]), [1,2,0])
+    example = tf.cast(example, tf.float32)
+    if train:
+        example = tf.image.pad_to_bounding_box(example, 4, 4, 40, 40)
+        example = tf.random_crop(example, [32, 32, 3])
+        example = tf.image.random_flip_left_right(example)
+    # example = tf.image.per_image_standardization(example)
+    example.set_shape([32, 32, 3])
+    label.set_shape([1])
+    return example, label
 
 
-def load_valid_data():
-    tmp = unpickle(os.path.join(FLAGS.data_dir, "test_batch"))
-    data = np.ndarray(shape=(0, 32 * 32 * 3), dtype=np.float32)
-    labels = np.ndarray(shape=0, dtype=np.int64)
-
-    data = np.append(data, tmp[b'data'], axis=0)
-    # data = tmp[b'data']
-    labels = np.append(labels, tmp[b'labels'])
-
-    # data.astype(np.float32)
-    # labels.astype(np.int64)
-
-    data = np.reshape(data, [-1, 32, 32, 3], 'F').transpose((0, 2, 1, 3))
-    print('load test data: test_batch')
-    return data, labels
-
+def input_pipeline(filenames, batch_size, train, num_epochs=None):
+    filename_queue = tf.train.string_input_producer(filenames, num_epochs=num_epochs, shuffle=train)
+    example, label = read_my_file_format(filename_queue, train)
+    min_after_dequeue = 10000
+    capacity = min_after_dequeue + 3*batch_size
+    example_batch, label_batch = tf.train.batch(
+        [example, label], batch_size=batch_size, capacity=capacity,
+    )
+    return example_batch, label_batch
 
 
 
@@ -111,21 +139,25 @@ def main(_):
     # if tf.gfile.Exists(FLAGS.log_dir):
     #     tf.gfile.DeleteRecursively(FLAGS.log_dir)
     # tf.gfile.MakeDirs(FLAGS.log_dir)
+    train_filenames = [('bindata/data_batch_%d.bin' % i) for i in range(1, 6)]
+    train_example_batch, train_label_batch = input_pipeline(train_filenames, 128, False)
+    valid_filenames = ['bindata/test_batch.bin']
+    valid_example_batch, valid_label_batch = input_pipeline(valid_filenames, 10000, False)
 
-    train_data, train_labels = load_train_data()
-    # name = 'cifar10_train'
-
-    valid_data, valid_labels = load_valid_data()
-    # name = 'cifar10_valid'
-    train_data = (train_data - 128) / 128.0
-    valid_data = (valid_data - 128) / 128.0
+    # train_data, train_labels = load_train_data()
+    # # name = 'cifar10_train'
+    #
+    # valid_data, valid_labels = load_valid_data()
+    # # name = 'cifar10_valid'
+    # train_data = (train_data - 128) / 128.0
+    # valid_data = (valid_data - 128) / 128.0
 
     with tf.name_scope('input'):
         x = tf.placeholder(tf.float32, [None, 32, 32, 3], 'x')
         tf.summary.image('show', x, 1)
 
     with tf.name_scope('label'):
-        y_ = tf.placeholder(tf.int64, [None, ], 'y')
+        y_ = tf.placeholder(tf.int64, [None, 1], 'y')
 
     with tf.variable_scope('net'):
         # y, keep_prob = build_net(x)
@@ -160,7 +192,7 @@ def main(_):
         global_step = tf.Variable(1, name="global_step")
         # learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
         #     global_step, FLAGS.decay_steps, FLAGS.decay_rate, True, "learning_rate")
-        learning_rate = tf.train.piecewise_constant(global_step, [32000, 48000], [0.1, 0.01, 0.001])
+        learning_rate = tf.train.piecewise_constant(global_step, [5000, 15000], [0.1, 0.01, 0.001])
         train_step = tf.train.MomentumOptimizer(learning_rate, momentum=FLAGS.momentum).minimize(
             total_loss, global_step=global_step)
     tf.summary.scalar('lr', learning_rate)
@@ -183,36 +215,33 @@ def main(_):
         train_writer.flush()
         test_writer.flush()
 
-        def feed_dict(train, kk=FLAGS.dropout):
-            """Make a TensorFlow feed_dict: maps data onto Tensor placeholders."""
-
-            def get_batch(data, labels):
-                id = np.random.randint(low=0, high=labels.shape[0], size=FLAGS.batch_size, dtype=np.int32)
-                return data[id, ...], labels[id]
-
-            if train:
-                tmp, ys = get_batch(train_data, train_labels)
-                xs = tmp
-                tmp = np.pad(tmp, 4, 'constant')
-                for ii in range(FLAGS.batch_size):
-                    xx = np.random.randint(0, 9)
-                    yy = np.random.randint(0, 9)
-                    xs[ii,:] = tmp[ii + 4,xx:xx + 32, yy:yy + 32,4:7]
-                k = kk
-            else:
-                # xs, ys = get_batch(valid_data, valid_labels)
-                xs = valid_data
-                ys = valid_labels
-                k = 1.0
-            return {x: xs, y_: ys, keep_prob: k}
-
+        # def feed_dict(train, kk=FLAGS.dropout):
+        #     """Make a TensorFlow feed_dict: maps data onto Tensor placeholders."""
+        #
+        #     def get_batch(data, labels):
+        #         id = np.random.randint(low=0, high=labels.shape[0], size=FLAGS.batch_size, dtype=np.int32)
+        #         return data[id, ...], labels[id]
+        #
+        #     if train:
+        #         xs, ys = get_batch(train_data, train_labels)
+        #         k = kk
+        #     else:
+        #         # xs, ys = get_batch(valid_data, valid_labels)
+        #         xs = valid_data
+        #         ys = valid_labels
+        #         k = 1.0
+        #     return {x: xs, y_: ys, keep_prob: k}
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
         for i in range(1, FLAGS.max_steps + 1):
             if i % 1000 == 0 and i != 1:
                 time.sleep(60)
 
             if i % 100 == 0 and i != 0:  # Record summaries and test-set accuracy
                 # start = time.clock()
-                acc, summary = sess.run([accuracy, merged], feed_dict=feed_dict(False))
+                data_, label_ = sess.run([valid_example_batch, valid_label_batch])
+                data_ = (data_ - 128) / 128.0
+                acc, summary = sess.run([accuracy, merged], feed_dict={x: data_, y_: label_})
                 # end = time.clock()
                 test_writer.add_summary(summary, i)
                 # print('Accuracy at step %s: %s; %f seconds' % (i, acc, end - start))
@@ -221,25 +250,31 @@ def main(_):
             if i % 100 == 99:  # Record execution stats
                 run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
                 run_metadata = tf.RunMetadata()
-                feed = feed_dict(True)
-                sess.run(train_step,
-                         feed_dict=feed,
+                # feed = feed_dict(True)
+                data_, label_ = sess.run([train_example_batch, train_label_batch])
+                data_ = (data_ - 128) / 128.0
+                _, summary = sess.run([train_step, merged],
+                         feed_dict={x: data_, y_: label_},
                          options=run_options,
                          run_metadata=run_metadata)
                 train_writer.add_run_metadata(run_metadata, 'step%03d' % i)
 
-                feed[keep_prob] = 1.0
-                summary = sess.run(merged, feed_dict=feed)
+                # summary = sess.run(merged, feed_dict=feed)
                 train_writer.add_summary(summary, i)
                 print('Adding run metadata for step', i)
                 saver.save(sess, os.path.join(FLAGS.ckpt_dir, 'model.ckpt'))
             else:  # Record a summary
-                feed = feed_dict(True)
-                sess.run(train_step, feed_dict=feed)
-
-                feed[keep_prob] = 1.0
-                summary = sess.run(merged, feed_dict=feed)
+                data_, label_ = sess.run([train_example_batch, train_label_batch])
+                data_ = (data_ - 128) / 128.0
+                # print(label_[1])
+                # plt.imshow(data_[1,:].astype(np.uint8))
+                # plt.show()
+                _, summary = sess.run([train_step, merged], feed_dict={x: data_, y_: label_})
                 train_writer.add_summary(summary, i)
+
+        coord.request_stop()
+
+        coord.join(threads)
 
     train_writer.close()
     test_writer.close()
