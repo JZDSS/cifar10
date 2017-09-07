@@ -7,3 +7,4 @@ nohup.out
 run.sh
 test/
 data/
+bindata/
