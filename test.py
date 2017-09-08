@@ -18,9 +18,10 @@ flags.DEFINE_float('weight_decay', 0.0001, 'weight decay')
 flags.DEFINE_integer('decay_steps', 100, 'decay steps')
 flags.DEFINE_float('decay_rate', 0.95, 'decay rate')
 flags.DEFINE_float('momentum', 0.9, 'momentum')
-tf.app.flags.DEFINE_integer('batch_size', 100, 'batch size')
+tf.app.flags.DEFINE_integer('batch_size', 128, 'batch size')
 tf.app.flags.DEFINE_float('dropout', 0.5, 'keep probability')
-tf.app.flags.DEFINE_integer('max_steps', 64000, 'max steps')
+tf.app.flags.DEFINE_integer('max_steps', 20000, 'max steps')
+tf.app.flags.DEFINE_integer('start_step', 1, 'start steps')
 
 FLAGS = flags.FLAGS
 
@@ -157,10 +158,10 @@ def main(_):
     # loss_collect = tf.get_collection(tf.GraphKeys.LOSSES)
     # print((tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)))
     with tf.name_scope('train'):
-        global_step = tf.Variable(1, name="global_step")
+        global_step = tf.Variable(FLAGS.start_step, name="global_step")
         # learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
         #     global_step, FLAGS.decay_steps, FLAGS.decay_rate, True, "learning_rate")
-        learning_rate = tf.train.piecewise_constant(global_step, [32000, 48000], [0.1, 0.01, 0.001])
+        learning_rate = tf.train.piecewise_constant(global_step, [9000, 15000], [0.1, 0.01, 0.001])
         train_step = tf.train.MomentumOptimizer(learning_rate, momentum=FLAGS.momentum).minimize(
             total_loss, global_step=global_step)
     tf.summary.scalar('lr', learning_rate)
@@ -197,7 +198,8 @@ def main(_):
                 for ii in range(FLAGS.batch_size):
                     xx = np.random.randint(0, 9)
                     yy = np.random.randint(0, 9)
-                    xs[ii,:] = tmp[ii + 4,xx:xx + 32, yy:yy + 32,4:7]
+                    xs[ii,:] = np.fliplr(tmp[ii + 4,xx:xx + 32, yy:yy + 32,4:7]) if np.random.randint(0, 2) == 1 \
+                        else tmp[ii + 4,xx:xx + 32, yy:yy + 32,4:7]
                 k = kk
             else:
                 # xs, ys = get_batch(valid_data, valid_labels)
@@ -206,7 +208,7 @@ def main(_):
                 k = 1.0
             return {x: xs, y_: ys, keep_prob: k}
 
-        for i in range(1, FLAGS.max_steps + 1):
+        for i in range(FLAGS.start_step, FLAGS.max_steps + 1):
             if i % 1000 == 0 and i != 1:
                 time.sleep(60)
 
@@ -247,3 +249,4 @@ def main(_):
 
 if __name__ == '__main__':
     tf.app.run()
+

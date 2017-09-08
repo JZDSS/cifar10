@@ -1,24 +1,24 @@
 import tensorflow.contrib.layers as layers
 import tensorflow as tf
-
+import math
 def block(inputs, num_outputs, weight_decay, scope, down_sample = False):
     with tf.variable_scope(scope):
 
         num_inputs = inputs.get_shape().as_list()[3]
 
         res = layers.conv2d(inputs, num_outputs = num_outputs, kernel_size=[3, 3], stride=2 if down_sample else 1,
-                            weights_initializer=tf.truncated_normal_initializer(stddev=0.01),
+                            weights_initializer=tf.truncated_normal_initializer(stddev=math.sqrt(2.0/9.0/num_inputs)),
                             weights_regularizer=layers.l2_regularizer(weight_decay),
                             biases_regularizer=layers.l2_regularizer(weight_decay),
                             scope='conv1', normalizer_fn=layers.batch_norm)
 
         res = layers.conv2d(res, num_outputs=num_outputs, kernel_size=[3, 3], activation_fn=None,
-                            weights_initializer=tf.truncated_normal_initializer(stddev=0.01),
+                            weights_initializer=tf.truncated_normal_initializer(stddev=math.sqrt(2.0/9.0/num_outputs)),
                             weights_regularizer=layers.l2_regularizer(weight_decay),
                             biases_regularizer=layers.l2_regularizer(weight_decay),
                             scope='conv2', normalizer_fn=layers.batch_norm)
         if  num_inputs != num_outputs:
-            w = tf.Variable(tf.truncated_normal([1, 1, num_inputs, num_outputs], stddev=0.1))
+            w = tf.Variable(tf.truncated_normal([1, 1, num_inputs, num_outputs], stddev=math.sqrt(2.0/num_inputs)))
             inputs = tf.nn.conv2d(inputs, w, [1, 2, 2, 1], 'SAME')
         res = tf.nn.relu(res + inputs)
 
@@ -27,7 +27,12 @@ def block(inputs, num_outputs, weight_decay, scope, down_sample = False):
 
 def build_net(x, n):
     with tf.variable_scope('pre'):
-        pre = layers.conv2d(inputs=x, num_outputs=16,  kernel_size = [3, 3], scope='conv')
+        pre = layers.conv2d(inputs=x, num_outputs=16,  kernel_size = [3, 3], scope='conv',
+                            weights_initializer=tf.truncated_normal_initializer(
+                            stddev=math.sqrt(2.0 / 9.0 / 3)),
+                            weights_regularizer=layers.l2_regularizer(0.0001),
+                            biases_regularizer=layers.l2_regularizer(0.0001),
+                            normalizer_fn=layers.batch_norm)
         # pre = layers.max_pool2d(pre, [2, 2], padding='SAME', scope='pool')
     h = pre
     for i in range(1, n + 1):
