@@ -46,13 +46,18 @@ def build_net(x, n):
     for i in range(2, n + 1):
         h = block(h, 64, 0.0001, '64_block{}'.format(i))
 
-    h = layers.avg_pool2d(h, [8, 8])
+    # h = layers.avg_pool2d(h, [8, 8])
 
-    h = layers.fully_connected(inputs=h, num_outputs=10, activation_fn=None,
-                               weights_initializer=tf.truncated_normal_initializer(stddev=0.05),
-                               weights_regularizer=layers.l2_regularizer(0.0001),
-                               biases_regularizer=layers.l2_regularizer(0.0001),
-                               scope='fc1')
-
+    # h = layers.fully_connected(inputs=h, num_outputs=10, activation_fn=None,
+    #                            weights_initializer=tf.truncated_normal_initializer(stddev=0.05),
+    #                            weights_regularizer=layers.l2_regularizer(0.0001),
+    #                            biases_regularizer=layers.l2_regularizer(0.0001),
+    #                            scope='fc1')
+    h = layers.conv2d(inputs=h, num_outputs=10, kernel_size=[8, 8], scope='fc1', padding='VALID',
+                  weights_initializer=tf.truncated_normal_initializer(
+                      stddev=math.sqrt(2.0 / 64 / 10)),
+                  weights_regularizer=layers.l2_regularizer(0.0001),
+                  biases_regularizer=layers.l2_regularizer(0.0001),
+                  normalizer_fn=layers.batch_norm)
     keep_prob = tf.placeholder(tf.float32, name="keep_prob")
     return tf.reshape(h, [-1, 10]), keep_prob
