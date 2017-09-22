@@ -7,7 +7,7 @@ import pickle
 import time
 import matplotlib.pyplot as plt
 
-import modu.resnet as res
+import experience.resnet as res
 
 flags = tf.app.flags
 

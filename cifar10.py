@@ -5,12 +5,12 @@ import time
 import numpy as np
 import tensorflow as tf
 
-from modu import allconv
-from modu import baseline
-from modu import fmp
-from modu import crossconv
-from modu import matconvnet
-from modu import resnet
+from experience import allconv
+from experience import baseline
+from experience import fmp
+from experience import crossconv
+from experience import matconvnet
+from experience import resnet
 
 tf.app.flags.DEFINE_integer('epochs', 10, 'number of epochs')
 tf.app.flags.DEFINE_float('learning_rate', 0.05, 'learning rate')

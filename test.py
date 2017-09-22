@@ -6,7 +6,7 @@ import os
 import pickle
 import time
 
-import modu.resnet as res
+import experience.resnet as res
 
 flags = tf.app.flags
 
@@ -20,7 +20,7 @@ flags.DEFINE_float('decay_rate', 0.95, 'decay rate')
 flags.DEFINE_float('momentum', 0.9, 'momentum')
 tf.app.flags.DEFINE_integer('batch_size', 128, 'batch size')
 tf.app.flags.DEFINE_float('dropout', 0.5, 'keep probability')
-tf.app.flags.DEFINE_integer('max_steps', 20000, 'max steps')
+tf.app.flags.DEFINE_integer('max_steps', 64000, 'max steps')
 tf.app.flags.DEFINE_integer('start_step', 1, 'start steps')
 
 FLAGS = flags.FLAGS
@@ -161,7 +161,7 @@ def main(_):
         global_step = tf.Variable(FLAGS.start_step, name="global_step")
         # learning_rate = tf.train.exponential_decay(FLAGS.learning_rate,
         #     global_step, FLAGS.decay_steps, FLAGS.decay_rate, True, "learning_rate")
-        learning_rate = tf.train.piecewise_constant(global_step, [9000, 15000], [0.1, 0.01, 0.001])
+        learning_rate = tf.train.piecewise_constant(global_step, [32000, 48000], [0.1, 0.01, 0.001])
         train_step = tf.train.MomentumOptimizer(learning_rate, momentum=FLAGS.momentum).minimize(
             total_loss, global_step=global_step)
     tf.summary.scalar('lr', learning_rate)
@@ -213,35 +213,14 @@ def main(_):
                 time.sleep(60)
 
             if i % 100 == 0 and i != 0:  # Record summaries and test-set accuracy
-                # start = time.clock()
                 acc, summary = sess.run([accuracy, merged], feed_dict=feed_dict(False))
-                # end = time.clock()
                 test_writer.add_summary(summary, i)
-                # print('Accuracy at step %s: %s; %f seconds' % (i, acc, end - start))
+                print(i)
+                print(acc)
+                acc, summary = sess.run([accuracy, merged], feed_dict=feed_dict(True))
+                print(acc)
+            sess.run(train_step, feed_dict=feed_dict(True))
 
-            # else:  # Record train set summaries, and train
-            if i % 100 == 99:  # Record execution stats
-                run_options = tf.RunOptions(trace_level=tf.RunOptions.FULL_TRACE)
-                run_metadata = tf.RunMetadata()
-                feed = feed_dict(True)
-                sess.run(train_step,
-                         feed_dict=feed,
-                         options=run_options,
-                         run_metadata=run_metadata)
-                train_writer.add_run_metadata(run_metadata, 'step%03d' % i)
-
-                feed[keep_prob] = 1.0
-                summary = sess.run(merged, feed_dict=feed)
-                train_writer.add_summary(summary, i)
-                print('Adding run metadata for step', i)
-                saver.save(sess, os.path.join(FLAGS.ckpt_dir, 'model.ckpt'))
-            else:  # Record a summary
-                feed = feed_dict(True)
-                sess.run(train_step, feed_dict=feed)
-
-                feed[keep_prob] = 1.0
-                summary = sess.run(merged, feed_dict=feed)
-                train_writer.add_summary(summary, i)
 
     train_writer.close()
     test_writer.close()

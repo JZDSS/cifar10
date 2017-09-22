@@ -1,4 +1,4 @@
-from modu.utils import *
+from experience.utils import *
 
 weight_decay = tf.constant(0.0001)
 
