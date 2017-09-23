@@ -211,7 +211,7 @@ def main(_):
         for i in range(FLAGS.start_step, FLAGS.max_steps + 1):
             if i % 1000 == 0 and i != 1:
                 time.sleep(60)
-
+            sess.run(train_step, feed_dict=feed_dict(True))
             if i % 100 == 0 and i != 0:  # Record summaries and test-set accuracy
                 acc, summary = sess.run([accuracy, merged], feed_dict=feed_dict(False))
                 test_writer.add_summary(summary, i)
@@ -219,7 +219,7 @@ def main(_):
                 print(acc)
                 acc, summary = sess.run([accuracy, merged], feed_dict=feed_dict(True))
                 print(acc)
-            sess.run(train_step, feed_dict=feed_dict(True))
+
 
 
     train_writer.close()
