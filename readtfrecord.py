@@ -2,37 +2,30 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 
+def read_from_tfrecord(tfrecord_file_queue):
+    # tfrecord_file_queue = tf.train.string_input_producer(filenames, name='queue')
+    reader = tf.TFRecordReader()
+    _, tfrecord_serialized = reader.read(tfrecord_file_queue)
+    tfrecord_features = tf.parse_single_example(tfrecord_serialized,
+        features={
+            'label': tf.FixedLenFeature([], tf.string),
+            'image_raw': tf.FixedLenFeature([], tf.string)
+        }, name='features')
+    image = tf.decode_raw(tfrecord_features['image_raw'], tf.uint8)
+    ground_truth = tf.decode_raw(tfrecord_features['label'], tf.int32)
 
-for serialized_example in tf.python_io.tf_record_iterator("./data/cifar10_train.tfrecords"):
-    example = tf.train.Example()
-    example.ParseFromString(serialized_example)
+    image = tf.reshape(image, [32, 32, 3])
+    ground_truth = tf.reshape(ground_truth, [1])
+    return image, ground_truth
 
-    image = example.features.feature['image_raw'].bytes_list.value[0]
-    label = example.features.feature['label'].int64_list.value
-    im = np.fromstring(image, dtype=np.uint8)
-    im = np.reshape(im, [32, 32, 3])
-    plt.imshow(im)
+image, label = read_from_tfrecord(tf.train.string_input_producer(['data/cifar10_train.tfrecords']))
+with tf.Session() as sess:
+    coord = tf.train.Coordinator()
+    threads = tf.train.start_queue_runners(coord=coord)
+
+    image, labels = sess.run([image, label])
+    print(labels)
+    plt.imshow(image)
     plt.show()
-    # cv2.waitKey(0)
-    print(image, label)
-
-# reader = tf.python_io.tf_record_iterator('./data/cifar10_train.tfrecords')
-# those_examples = [tf.train.Example().FromString(example_str)
-#                   for example_str in reader]
-#
-# a = 1
-
-
-# reader = tf.python_io.tf_record_iterator('./data/cifar10_train.tfrecords')
-# those_examples = [tf.train.Example().FromString(example_str)
-#                   for example_str in reader]
-# same_example = those_examples[0]
-#
-# same_image_bytes = same_example.features.feature['image_raw'].bytes_list.value[0]
-#
-# im = np.fromstring(same_image_bytes, dtype=np.uint8)
-# im = np.reshape(im, [32, 32, 3], 'C')
-#
-# plt.imshow(im)
-# plt.show()
-# a = 1
+    coord.request_stop()
+    coord.join(threads)

@@ -8,7 +8,7 @@ import tensorflow as tf
 flags = tf.app.flags
 flags.DEFINE_string('data_dir', './test/data', 'data direction')
 flags.DEFINE_string('outdirectory', './test/', '')
-flags.DEFINE_bool('train', False, 'True for training data, False for valid data')
+flags.DEFINE_bool('train', True, 'True for training data, False for valid data')
 FLAGS = flags.FLAGS
 
 def unpickle(file):
@@ -19,20 +19,22 @@ def unpickle(file):
 
 def load_train_data():
     data = np.ndarray(shape=(0, 32 * 32 * 3), dtype=np.uint8)
-    labels = np.ndarray(shape=0, dtype=np.int64)
+    labels = np.ndarray(shape=0, dtype=np.int32)
     for i in range(5):
         tmp = unpickle(os.path.join(FLAGS.data_dir, "data_batch_{}".format(i + 1)))
         data = np.append(data, tmp[b'data'], axis=0)
         labels = np.append(labels, tmp[b'labels'], axis=0)
         print('load training data: data_batch_{}'.format(i + 1))
     data = np.reshape(data, [-1, 32, 32, 3], 'F').transpose((0, 2, 1, 3))
+    labels = labels.astype(np.int32)
+
     return data, labels
 
 
 def load_valid_data():
     tmp = unpickle(os.path.join(FLAGS.data_dir, "test_batch"))
-    data = np.ndarray(shape=(0, 32 * 32 * 3), dtype=np.float32)
-    labels = np.ndarray(shape=0, dtype=np.int64)
+    data = np.ndarray(shape=(0, 32 * 32 * 3), dtype=np.uint8)
+    labels = np.ndarray(shape=0, dtype=np.int32)
 
     data = np.append(data, tmp[b'data'], axis=0)
     # data = tmp[b'data']
@@ -43,11 +45,9 @@ def load_valid_data():
 
     data = np.reshape(data, [-1, 32, 32, 3], 'F').transpose((0, 2, 1, 3))
     print('load test data: test_batch')
+    labels = labels.astype(np.int32)
     return data, labels
 
-
-def _int64_feature(value):
-  return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
 
 def _bytes_feature(value):
   return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
@@ -62,18 +62,18 @@ def main(_):
         name = 'cifar10_valid'
     # data = (data - 128) / 128.0
     # valid_data = (valid_data - 128) / 128.0
-
-
+    # labels.astype(np.int32)
 
     num_examples = data.shape[0]
-    rows = data.shape[1]
-    cols = data.shape[2]
-    depth = data.shape[3]
+    # rows = data.shape[1]
+    # cols = data.shape[2]
+    # depth = data.shape[3]
     filename = os.path.join(FLAGS.outdirectory, name + '.tfrecords')
     print('Writing', filename)
     writer = tf.python_io.TFRecordWriter(filename)
     for index in range(num_examples):
         image_raw = data[index].tostring()
+        labels_raw = labels[index].tostring()
         # print(image_raw)
         # d = data[index].astype(np.uint8)
         # plt.imshow(d)
@@ -84,7 +84,7 @@ def main(_):
             # 'height': _int64_feature(rows),
             # 'width': _int64_feature(cols),
             # 'depth': _int64_feature(depth),
-            'label': _int64_feature(int(labels[index])),
+            'label': _bytes_feature(labels_raw),
             'image_raw': _bytes_feature(image_raw)}))
         writer.write(example.SerializeToString())
     writer.close()
